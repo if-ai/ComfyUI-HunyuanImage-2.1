@@ -262,6 +262,10 @@ class HunyuanModelManager:
         try:
             print(f"[HunyuanImage] Downloading {repo} to {target_dir}")
             
+            # Set environment for UTF-8 output
+            env = os.environ.copy()
+            env['PYTHONIOENCODING'] = 'utf-8'
+
             # Try using huggingface-cli
             common_args = ["--local-dir", target_dir, "--local-dir-use-symlinks", "False"]
             if files == ["*"]:
@@ -273,17 +277,24 @@ class HunyuanModelManager:
             
             print(f"[HunyuanImage] Running command: {' '.join(cmd)}")
             result = subprocess.run(
-                cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore'
+                cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore', env=env
             )
             
             if result.returncode != 0:
                 print(f"[HunyuanImage] huggingface-cli failed. Stderr: {result.stderr}")
+                
+                # Clean up failed download attempt
+                if os.path.exists(target_dir):
+                    print(f"[HunyuanImage] Cleaning up failed download directory: {target_dir}")
+                    import shutil
+                    shutil.rmtree(target_dir, ignore_errors=True)
+                
                 # Fallback to git clone
                 print(f"[HunyuanImage] trying git clone")
                 cmd = ["git", "clone", f"https://huggingface.co/{repo}", target_dir]
                 print(f"[HunyuanImage] Running command: {' '.join(cmd)}")
                 result = subprocess.run(
-                    cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore'
+                    cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore', env=env
                 )
                 
                 if result.returncode != 0:
