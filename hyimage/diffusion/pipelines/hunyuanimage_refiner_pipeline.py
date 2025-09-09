@@ -17,7 +17,7 @@ from hyimage.models.model_zoo import (
 
 
 @dataclass
-class HunYuanImageRefinerPipelineConfig(HunyuanImagePipelineConfig):
+class HunyuanImageRefinerPipelineConfig(HunyuanImagePipelineConfig):
     """
     Configuration class for HunyuanImage refiner pipeline.
     
@@ -51,21 +51,21 @@ class HunYuanImageRefinerPipelineConfig(HunyuanImagePipelineConfig):
         )
 
 
-class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
+class HunyuanImageRefinerPipeline(HunyuanImagePipeline):
     """A refiner pipeline for HunyuanImage that inherits from the main pipeline.
     
     This pipeline refines existing images using the same model architecture
     but with different default parameters and an image input.
     """
     
-    def __init__(self, config: HunYuanImageRefinerPipelineConfig, **kwargs):
+    def __init__(self, config: HunyuanImageRefinerPipelineConfig, **kwargs):
         """Initialize the refiner pipeline.
         
         Args:
             config: Refiner-specific configuration
             **kwargs: Additional arguments passed to parent class
         """
-        assert isinstance(config, HunYuanImageRefinerPipelineConfig)
+        assert isinstance(config, HunyuanImageRefinerPipelineConfig)
         super().__init__(config, **kwargs)
         assert self.cfg_distilled
         
@@ -241,14 +241,14 @@ class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
                 f"Unsupported refiner model name: {model_name}. Supported names: 'hunyuanimage-refiner'"
             )
 
-        config = HunYuanImageRefinerPipelineConfig.create_default(
+        config = HunyuanImageRefinerPipelineConfig.create_default(
             version=version, **kwargs
         )
 
         return cls(config=config)
 
     @classmethod
-    def from_config(cls, config: Union[HunYuanImageRefinerPipelineConfig, HunyuanImagePipelineConfig]):
+    def from_config(cls, config: Union[HunyuanImageRefinerPipelineConfig, HunyuanImagePipelineConfig]):
         """Create refiner pipeline from configuration object.
         
         Args:
@@ -265,7 +265,7 @@ def RefinerPipeline(
     model_name: str = "hunyuanimage-refiner",
     **kwargs,
 ):
-    """Factory function to create HunYuanImageRefinerPipeline.
+    """Factory function to create HunyuanImageRefinerPipeline.
 
     Args:
         model_name: Model name, currently only supports "hunyuanimage-refiner"
@@ -274,6 +274,6 @@ def RefinerPipeline(
     Returns:
         Initialized refiner pipeline instance
     """
-    return HunYuanImageRefinerPipeline.from_pretrained(
+    return HunyuanImageRefinerPipeline.from_pretrained(
         model_name, **kwargs
     )

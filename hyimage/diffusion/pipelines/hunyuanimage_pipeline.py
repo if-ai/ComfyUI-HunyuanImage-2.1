@@ -219,8 +219,8 @@ class HunyuanImagePipeline:
         """
         if hasattr(self, '_refiner_pipeline') and self._refiner_pipeline is not None:
             return self._refiner_pipeline
-        from hyimage.diffusion.pipelines.hunyuanimage_refiner_pipeline import HunYuanImageRefinerPipeline
-        self._refiner_pipeline = HunYuanImageRefinerPipeline.from_pretrained(self.config.refiner_model_name)
+        from hyimage.diffusion.pipelines.hunyuanimage_refiner_pipeline import HunyuanImageRefinerPipeline
+        self._refiner_pipeline = HunyuanImageRefinerPipeline.from_pretrained(self.config.refiner_model_name)
         return self._refiner_pipeline
 
     @property
