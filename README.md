@@ -44,9 +44,16 @@ This repo contains PyTorch model definitions, pretrained weights and inference/s
   - [Contents](#contents)
   - [Abstract](#abstract)
   - [HunyuanImage-2.1 Overall Pipeline](#hunyuanimage-21-overall-pipeline)
+    - [Training Data and Caption](#training-data-and-caption)
+    - [Text-to-Image Model Architecture](#text-to-image-model-architecture)
+    - [Reinforcement Learning from Human Feedback](#reinforcement-learning-from-human-feedback)
+    - [Rewriting Model](#rewriting-model)
+    - [Model distillation](#model-distillation)
   - [🎉 HunyuanImage-2.1 Key Features](#-hunyuanimage-21-key-features)
   - [Prompt Enhanced Demo](#prompt-enhanced-demo)
   - [📈 Comparisons](#-comparisons)
+    - [SSAE Evaluation](#ssae-evaluation)
+    - [GSB Evaluation](#gsb-evaluation)
   - [📜 System Requirements](#-system-requirements)
   - [🛠️ Dependencies and Installation](#️-dependencies-and-installation)
   - [🧱 Download Pretrained Models](#-download-pretrained-models)
@@ -217,7 +224,7 @@ image = pipe(
     width=2048,
     height=2048,
     use_reprompt=True,  # Enable prompt enhancement
-    use_refiner=False,  # Refiner is not supported yet; coming soon.
+    use_refiner=False,  # Enable refiner model
     # For the distilled model, use 8 steps for faster inference.
     # For the non-distilled model, use 50 steps for better quality
     num_inference_steps=8 if "distilled" in model_name else 50, 
