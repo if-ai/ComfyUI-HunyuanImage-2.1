@@ -130,7 +130,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+abc.txt
 # Spyder project settings
 .spyderproject
 .spyproject

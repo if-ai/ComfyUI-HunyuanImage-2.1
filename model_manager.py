@@ -54,19 +54,19 @@ MODEL_CONFIGS = {
         },
         "text_encoders": {
             "mllm": {
-                "repo": "tencent/HunyuanImage-2.1",
+                "repo": "Qwen/Qwen2.5-VL-7B-Instruct",
                 "files": ["*"],
                 "folder": "text_encoders",
                 "subfolder": "hunyuanimage-v2.1/llm"
             },
             "byt5": {
-                "repo": "tencent/HunyuanImage-2.1",
+                "repo": "google/byt5-small",
                 "files": ["*"],
                 "folder": "text_encoders", 
                 "subfolder": "hunyuanimage-v2.1/byt5-small"
             },
             "glyph": {
-                "repo": "tencent/HunyuanImage-2.1",
+                "repo": "AI-ModelScope/Glyph-SDXL-v2",
                 "files": ["*"],
                 "folder": "text_encoders",
                 "subfolder": "hunyuanimage-v2.1/Glyph-SDXL-v2",
@@ -263,23 +263,32 @@ class HunyuanModelManager:
             print(f"[HunyuanImage] Downloading {repo} to {target_dir}")
             
             # Try using huggingface-cli
+            common_args = ["--local-dir", target_dir, "--local-dir-use-symlinks", "False"]
             if files == ["*"]:
-                cmd = ["huggingface-cli", "download", repo, "--local-dir", target_dir]
+                cmd = ["huggingface-cli", "download", repo] + common_args
             else:
-                cmd = ["huggingface-cli", "download", repo, "--local-dir", target_dir]
+                cmd = ["huggingface-cli", "download", repo] + common_args
                 for file in files:
                     cmd.extend(["--include", file])
             
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            print(f"[HunyuanImage] Running command: {' '.join(cmd)}")
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore'
+            )
             
             if result.returncode != 0:
+                print(f"[HunyuanImage] huggingface-cli failed. Stderr: {result.stderr}")
                 # Fallback to git clone
-                print(f"[HunyuanImage] huggingface-cli failed, trying git clone")
+                print(f"[HunyuanImage] trying git clone")
                 cmd = ["git", "clone", f"https://huggingface.co/{repo}", target_dir]
-                result = subprocess.run(cmd, capture_output=True, text=True)
+                print(f"[HunyuanImage] Running command: {' '.join(cmd)}")
+                result = subprocess.run(
+                    cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore'
+                )
                 
                 if result.returncode != 0:
-                    logger.error(f"Failed to download {repo}: {result.stderr}")
+                    logger.error(f"Failed to download {repo} with git clone: {result.stderr}")
+                    print(f"[HunyuanImage] git clone failed. Stderr: {result.stderr}")
                     return False
             
             print(f"[HunyuanImage] Successfully downloaded {repo}")
@@ -287,9 +296,11 @@ class HunyuanModelManager:
             
         except FileNotFoundError:
             logger.error("huggingface-cli not found. Install with: pip install huggingface-hub[cli]")
+            print("[HunyuanImage] huggingface-cli not found.")
             return False
         except Exception as e:
             logger.error(f"Download error: {e}")
+            print(f"[HunyuanImage] Download error: {e}")
             return False
     
     def _download_modelscope(self, repo: str, target_dir: str) -> bool:
@@ -298,7 +309,9 @@ class HunyuanModelManager:
             print(f"[HunyuanImage] Downloading {repo} from ModelScope to {target_dir}")
             
             cmd = ["modelscope", "download", "--model", repo, "--local_dir", target_dir]
-            result = subprocess.run(cmd, capture_output=True, text=True)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore'
+            )
             
             if result.returncode != 0:
                 logger.error(f"Failed to download {repo}: {result.stderr}")
