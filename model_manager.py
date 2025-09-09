@@ -12,6 +12,12 @@ from typing import Dict, List, Tuple, Optional
 import logging
 
 try:
+    from huggingface_hub import hf_hub_download, snapshot_download
+    HUGGINGFACE_HUB_AVAILABLE = True
+except ImportError:
+    HUGGINGFACE_HUB_AVAILABLE = False
+
+try:
     import folder_paths
 except ImportError:
     print("[HunyuanImage] Warning: folder_paths not available, using fallback paths")
@@ -258,59 +264,39 @@ class HunyuanModelManager:
             return self._download_huggingface(repo, target_dir, files)
     
     def _download_huggingface(self, repo: str, target_dir: str, files: List[str]) -> bool:
-        """Download from HuggingFace"""
-        try:
-            print(f"[HunyuanImage] Downloading {repo} to {target_dir}")
-            
-            # Set environment for UTF-8 output
-            env = os.environ.copy()
-            env['PYTHONIOENCODING'] = 'utf-8'
+        """Download from HuggingFace using huggingface_hub library"""
+        if not HUGGINGFACE_HUB_AVAILABLE:
+            logger.error("huggingface_hub library not found. Please install it with: pip install huggingface_hub")
+            print("[HunyuanImage] huggingface_hub library not found.")
+            return False
 
-            # Try using huggingface-cli
-            common_args = ["--local-dir", target_dir, "--local-dir-use-symlinks", "False"]
+        try:
+            print(f"[HunyuanImage] Downloading {repo} to {target_dir} using huggingface_hub")
+            
             if files == ["*"]:
-                cmd = ["huggingface-cli", "download", repo] + common_args
-            else:
-                cmd = ["huggingface-cli", "download", repo] + common_args
-                for file in files:
-                    cmd.extend(["--include", file])
-            
-            print(f"[HunyuanImage] Running command: {' '.join(cmd)}")
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore', env=env
-            )
-            
-            if result.returncode != 0:
-                print(f"[HunyuanImage] huggingface-cli failed. Stderr: {result.stderr}")
-                
-                # Clean up failed download attempt
-                if os.path.exists(target_dir):
-                    print(f"[HunyuanImage] Cleaning up failed download directory: {target_dir}")
-                    import shutil
-                    shutil.rmtree(target_dir, ignore_errors=True)
-                
-                # Fallback to git clone
-                print(f"[HunyuanImage] trying git clone")
-                cmd = ["git", "clone", f"https://huggingface.co/{repo}", target_dir]
-                print(f"[HunyuanImage] Running command: {' '.join(cmd)}")
-                result = subprocess.run(
-                    cmd, capture_output=True, text=True, check=False, encoding='utf-8', errors='ignore', env=env
+                # Download the entire repository
+                snapshot_download(
+                    repo,
+                    local_dir=target_dir,
+                    local_dir_use_symlinks=False,
+                    resume_download=True,
                 )
-                
-                if result.returncode != 0:
-                    logger.error(f"Failed to download {repo} with git clone: {result.stderr}")
-                    print(f"[HunyuanImage] git clone failed. Stderr: {result.stderr}")
-                    return False
+            else:
+                # Download specific files
+                for file in files:
+                    hf_hub_download(
+                        repo,
+                        filename=file,
+                        local_dir=target_dir,
+                        local_dir_use_symlinks=False,
+                        resume_download=True,
+                    )
             
             print(f"[HunyuanImage] Successfully downloaded {repo}")
             return True
             
-        except FileNotFoundError:
-            logger.error("huggingface-cli not found. Install with: pip install huggingface-hub[cli]")
-            print("[HunyuanImage] huggingface-cli not found.")
-            return False
         except Exception as e:
-            logger.error(f"Download error: {e}")
+            logger.error(f"Download error using huggingface_hub for {repo}: {e}")
             print(f"[HunyuanImage] Download error: {e}")
             return False
     
