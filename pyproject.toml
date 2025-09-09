@@ -1,0 +1,33 @@
+[project]
+name = "comfyui-hunyuanimage-2.1"
+description = "HunyuanImage-2.1: An Efficient Diffusion Model for High-Resolution (2K) Text-to-Image Generation"
+version = "0.0.1"
+license = { file = "LICENSE" }
+dependencies = [
+    "tqdm",
+    "torch>=2.6.0",
+    "einops",
+    "loguru",
+    "numpy",
+    "pillow",
+    "omegaconf>=2.3.0",
+    "torchaudio",
+    "diffusers>=0.32.0",
+    "safetensors",
+    "torchvision",
+    "huggingface-hub",
+    "transformers[accelerate,tiktoken]",
+    "wheel",
+    "setuptools",
+    "modelscope",
+    "huggingface_hub[cli]",
+    "flash-attn>=2.7.3"
+]
+
+[project.urls]
+Repository = "https://github.com/if-ai/ComfyUI-HunyuanImage-2.1"
+
+[tool.comfy]
+PublisherId = "impactframes"
+DisplayName = "ComfyUI HunyuanImage 2.1 wrapper"
+Icon = "https://impactframes.ai/System/Icons/48x48/if.png"

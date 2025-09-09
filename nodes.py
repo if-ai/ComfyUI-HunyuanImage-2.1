@@ -22,10 +22,19 @@ try:
     from hyimage.diffusion.pipelines.hunyuanimage_refiner_pipeline import HunyuanImageRefinerPipeline
     from hyimage.common.constants import PRECISION_TO_TYPE
     from hyimage.models.model_zoo import HUNYUANIMAGE_REPROMPT
+except ImportError as e:
+    print(f"[HunyuanImage] Error importing HunyuanImage modules: {e}")
+    print("[HunyuanImage] Please ensure all dependencies are installed with: pip install -r requirements.txt")
+    HunyuanImagePipeline = None
+    HunyuanImagePipelineConfig = None
+    HunyuanImageRefinerPipeline = None
+    PRECISION_TO_TYPE = None
+    HUNYUANIMAGE_REPROMPT = None
+
+try:
     from .model_manager import model_manager
 except ImportError as e:
-    print(f"[HunyuanImage] Error importing modules: {e}")
-    print("[HunyuanImage] Please ensure all dependencies are installed with: pip install -r requirements.txt")
+    print(f"[HunyuanImage] Error importing model_manager: {e}")
     model_manager = None
 
 # Define dtype options
@@ -75,6 +84,15 @@ class HunyuanImageModelLoader:
                   enable_reprompt_offloading, enable_refiner_offloading,
                   compile_backend, compile_mode, compile_dit, compile_vae, compile_text_encoder):
         """Load the HunyuanImage model with specified configuration"""
+        
+        # Check if required modules are imported
+        if HunyuanImagePipelineConfig is None or HunyuanImagePipeline is None:
+            raise ImportError(
+                "[HunyuanImage] Required modules not loaded. Please ensure:\n"
+                "1. All dependencies are installed: pip install -r requirements.txt\n"
+                "2. The hyimage package is properly installed\n"
+                "3. You may need to restart ComfyUI after installation"
+            )
         
         # Ensure models are available
         if model_manager:

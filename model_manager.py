@@ -9,8 +9,25 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
-import folder_paths
 import logging
+
+try:
+    import folder_paths
+except ImportError:
+    print("[HunyuanImage] Warning: folder_paths not available, using fallback paths")
+    # Fallback for when running outside ComfyUI
+    class FallbackFolderPaths:
+        folder_names_and_paths = {
+            "diffusion_models": ([os.path.join(os.getcwd(), "models", "diffusion_models")], {".safetensors", ".bin", ".pt"}),
+            "vae": ([os.path.join(os.getcwd(), "models", "vae")], {".safetensors", ".bin", ".pt"}),
+            "text_encoders": ([os.path.join(os.getcwd(), "models", "text_encoders")], {".safetensors", ".bin", ".pt"}),
+        }
+        
+        @staticmethod
+        def get_temp_directory():
+            return os.path.join(os.getcwd(), "temp")
+    
+    folder_paths = FallbackFolderPaths()
 
 logger = logging.getLogger(__name__)
 

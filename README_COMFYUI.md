@@ -22,14 +22,23 @@ Advanced ComfyUI custom nodes for HunyuanImage 2.1 - a high-resolution (2K) text
 1. Clone this repository into your ComfyUI custom_nodes folder:
 ```bash
 cd ComfyUI/custom_nodes
-git clone https://github.com/yourusername/ComfyUI-HunyuanImage-2.1.git
+git clone https://github.com/if-ai/ComfyUI-HunyuanImage-2.1.git
 ```
 
 2. Install dependencies:
+
+### Automatic Installation (Recommended)
+```bash
+cd ComfyUI-HunyuanImage-2.1
+python install.py
+```
+
+### Manual Installation
 ```bash
 cd ComfyUI-HunyuanImage-2.1
 pip install -r requirements.txt
-pip install flash-attn==2.7.3 --no-build-isolation
+pip install -e .  # Install hyimage package
+pip install flash-attn==2.7.3 --no-build-isolation  # Optional but recommended
 ```
 
 3. Model Management:
@@ -157,6 +166,28 @@ Manage GPU memory and model placement.
 
 ## Troubleshooting
 
+### Import Error: "HunyuanImagePipelineConfig is not defined"
+This error indicates the hyimage package is not properly installed:
+
+1. **Run the installation script:**
+   ```bash
+   cd ComfyUI/custom_nodes/ComfyUI-HunyuanImage-2.1
+   python install.py
+   ```
+
+2. **Or install manually:**
+   ```bash
+   pip install -e .  # Install hyimage package in editable mode
+   pip install -r requirements.txt
+   ```
+
+3. **Restart ComfyUI** after installation
+
+4. **Verify installation:**
+   ```bash
+   python -c "from hyimage.diffusion.pipelines.hunyuanimage_pipeline import HunyuanImagePipelineConfig; print('Success!')"
+   ```
+
 ### Out of Memory
 1. Enable all offloading options
 2. Use INT8 or INT4 quantization
@@ -169,12 +200,12 @@ Manage GPU memory and model placement.
 3. Reduce inference steps
 4. Enable Flash Attention
 
-### Import Errors
-Ensure all dependencies are installed:
-```bash
-pip install -r requirements.txt
-pip install flash-attn==2.7.3 --no-build-isolation
-```
+### Model Download Issues
+If automatic download fails:
+1. Check internet connection
+2. Ensure huggingface-cli is installed: `pip install huggingface-hub[cli]`
+3. Try manual download with the commands in the Installation section
+4. Check disk space (requires ~50GB for all models)
 
 ## Credits
 
