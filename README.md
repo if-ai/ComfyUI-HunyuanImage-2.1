@@ -224,7 +224,7 @@ image = pipe(
     width=2048,
     height=2048,
     use_reprompt=True,  # Enable prompt enhancement
-    use_refiner=False,  # Enable refiner model
+    use_refiner=True,  # Enable refiner model
     # For the distilled model, use 8 steps for faster inference.
     # For the non-distilled model, use 50 steps for better quality
     num_inference_steps=8 if "distilled" in model_name else 50, 

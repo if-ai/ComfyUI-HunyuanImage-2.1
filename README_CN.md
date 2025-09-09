@@ -211,7 +211,7 @@ image = pipe(
     width=2048,
     height=2048,
     use_reprompt=True,  # 启用提示词增强
-    use_refiner=False,  # 启用精修模型
+    use_refiner=True,   # 启用精修模型, 以获得更高画质
     # 对于蒸馏版模型，建议使用 8 步以加快推理速度；
     # 对于非蒸馏版模型，建议使用 50 步以获得更高画质
     num_inference_steps=8 if "distilled" in model_name else 50, 
