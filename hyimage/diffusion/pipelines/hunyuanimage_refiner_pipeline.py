@@ -5,12 +5,13 @@ import torch
 from PIL import Image
 from tqdm import tqdm
 import torchvision.transforms as T
+from einops import rearrange
 
 from .hunyuanimage_pipeline import HunyuanImagePipeline, HunyuanImagePipelineConfig
 
 from hyimage.models.model_zoo import (
     HUNYUANIMAGE_REFINER_DIT,
-    HUNYUANIMAGE_REFINER_VAE_32x,
+    HUNYUANIMAGE_REFINER_VAE_16x,
     HUNYUANIMAGE_REFINER_TEXT_ENCODER,
 )
 
@@ -37,7 +38,7 @@ class HunYuanImageRefinerPipelineConfig(HunyuanImagePipelineConfig):
         **kwargs,
     ):
         dit_config = HUNYUANIMAGE_REFINER_DIT()
-        vae_config = HUNYUANIMAGE_REFINER_VAE_32x()
+        vae_config = HUNYUANIMAGE_REFINER_VAE_16x()
         text_encoder_config = HUNYUANIMAGE_REFINER_TEXT_ENCODER()
 
         return cls(
@@ -68,7 +69,7 @@ class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
         super().__init__(config, **kwargs)
         assert self.cfg_distilled
         
-    def _condition_aug(self, latents, noise=None, strength=0.3):
+    def _condition_aug(self, latents, noise=None, strength=0.25):
         """Apply conditioning augmentation for refiner.
         
         Args:
@@ -148,7 +149,7 @@ class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
         # Encode prompts
         pos_text_emb, pos_text_mask = self._encode_text(prompt)
 
-        latents = self._prepare_latents(width, height, generator=generator)
+        latents = self._prepare_latents(width, height, generator=generator, vae_downsampling_factor=16)
 
         _pil_to_tensor = T.Compose(
             [
@@ -160,11 +161,19 @@ class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
         image_tensor = (
             _pil_to_tensor(image).unsqueeze(0).to("cuda", dtype=self.vae.dtype)
         )
+        image_tensor = image_tensor.unsqueeze(2)
 
-        cond_latents = self.vae.encode(
-            image_tensor.to(self.device, dtype=self.vae.dtype)
-        ).latent_dist.sample()
-        
+        with torch.no_grad():
+            cond_latents = self.vae.encode(
+                image_tensor.to(self.device, dtype=self.vae.dtype)
+            ).latent_dist.sample()
+
+        # reorg tokens
+        cond_latents = torch.cat((cond_latents[:, :, :1], cond_latents), dim=2)
+        cond_latents = rearrange(cond_latents, "b c f h w -> b f c h w")
+        cond_latents = rearrange(cond_latents, "b (f n) c h w -> b f (n c) h w", n=2)
+        cond_latents = rearrange(cond_latents, "b f c h w -> b c f h w").contiguous()
+
         if (
             hasattr(self.vae.config, "shift_factor")
             and self.vae.config.shift_factor
@@ -175,8 +184,6 @@ class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
         else:
             cond_latents.mul_(self.vae.config.scaling_factor)
         
-        # Add frame dimension for refiner model
-        cond_latents = cond_latents.unsqueeze(2)  # (b c 1 h w)
         
         # Apply conditioning augmentation
         cond_latents = self._condition_aug(cond_latents)
@@ -205,7 +212,7 @@ class HunYuanImageRefinerPipeline(HunyuanImagePipeline):
 
             latents = self.step(latents, noise_pred, sigmas, i)
 
-        refined_image = self._decode_latents(latents)
+        refined_image = self._decode_latents(latents, reorg_tokens=True)
 
         # Convert to PIL Image
         refined_image = (refined_image.squeeze(0).permute(1, 2, 0) * 255).byte().numpy()

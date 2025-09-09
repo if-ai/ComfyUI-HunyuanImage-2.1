@@ -2,8 +2,8 @@ import re
 import os
 from dataclasses import dataclass
 from typing import Optional
+from einops import rearrange
 
-from sympy import N
 from tqdm import tqdm
 import loguru
 import torch
@@ -419,7 +419,7 @@ class HunyuanImagePipeline:
 
         return byt5_text_ids, byt5_text_mask
 
-    def _prepare_latents(self, width: int, height: int, generator: torch.Generator, batch_size: int = 1):
+    def _prepare_latents(self, width: int, height: int, generator: torch.Generator, batch_size: int = 1, vae_downsampling_factor: int = 32):
         """
         Prepare initial noise latents.
 
@@ -432,7 +432,6 @@ class HunyuanImagePipeline:
         Returns:
             Latent tensor
         """
-        vae_downsampling_factor = 32
         assert width % vae_downsampling_factor == 0 and height % vae_downsampling_factor == 0, (
             f"width and height must be divisible by {vae_downsampling_factor}, but got {width} and {height}"
         )
@@ -595,7 +594,7 @@ class HunyuanImagePipeline:
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
         return noise_pred
 
-    def _decode_latents(self, latents):
+    def _decode_latents(self, latents, reorg_tokens=False):
         """
         Decode latents to images using VAE.
 
@@ -609,6 +608,12 @@ class HunyuanImagePipeline:
             latents = latents / self.vae.config.scaling_factor + self.vae.config.shift_factor
         else:
             latents = latents / self.vae.config.scaling_factor
+
+        if reorg_tokens:
+            latents = rearrange(latents, "b c f h w -> b f c h w")
+            latents = rearrange(latents, "b f (n c) h w -> b (f n) c h w", n=2)
+            latents = rearrange(latents, "b f c h w -> b c f h w")
+            latents = latents[:, :, 1:]
 
         if latents.ndim == 5:
             latents = latents.squeeze(2)

@@ -7,7 +7,7 @@ from hyimage.models.hunyuan.configs.hunyuanimage_config import (
     hunyuanimage_v2_1_distilled_cfg,
     hunyuanimage_refiner_cfg,
 )
-from hyimage.models.vae import load_vae
+from hyimage.models.vae import load_refiner_vae, load_vae
 from hyimage.common.config.base_config import (
     DiTConfig,
     RepromptConfig,
@@ -94,9 +94,9 @@ def HUNYUANIMAGE_REFINER_DIT(**kwargs):
         use_compile=True,
     )
 
-def HUNYUANIMAGE_REFINER_VAE_32x(**kwargs):
+def HUNYUANIMAGE_REFINER_VAE_16x(**kwargs):
     return VAEConfig(
-        model=L(load_vae)(
+        model=L(load_refiner_vae)(
             vae_path=None,
             device="cuda",
         ),
