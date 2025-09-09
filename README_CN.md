@@ -193,7 +193,7 @@ import torch
 from hyimage.diffusion.pipelines.hunyuanimage_pipeline import HunyuanImagePipeline
 
 # 支持的 model_name：hunyuanimage-v2.1, hunyuanimage-v2.1-distilled
-model_name = "hunyuanimage-v2.1-distilled"
+model_name = "hunyuanimage-v2.1"
 pipe = HunyuanImagePipeline.from_pretrained(model_name=model_name, torch_dtype='bf16')
 pipe = pipe.to("cuda")
 
