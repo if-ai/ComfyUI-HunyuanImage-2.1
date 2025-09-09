@@ -54,19 +54,19 @@ MODEL_CONFIGS = {
         },
         "text_encoders": {
             "mllm": {
-                "repo": "Qwen/Qwen2.5-VL-7B-Instruct",
+                "repo": "tencent/HunyuanImage-2.1",
                 "files": ["*"],
                 "folder": "text_encoders",
                 "subfolder": "hunyuanimage-v2.1/llm"
             },
             "byt5": {
-                "repo": "google/byt5-small",
+                "repo": "tencent/HunyuanImage-2.1",
                 "files": ["*"],
                 "folder": "text_encoders", 
                 "subfolder": "hunyuanimage-v2.1/byt5-small"
             },
             "glyph": {
-                "repo": "AI-ModelScope/Glyph-SDXL-v2",
+                "repo": "tencent/HunyuanImage-2.1",
                 "files": ["*"],
                 "folder": "text_encoders",
                 "subfolder": "hunyuanimage-v2.1/Glyph-SDXL-v2",
