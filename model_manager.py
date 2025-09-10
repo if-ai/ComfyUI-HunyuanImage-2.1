@@ -7,6 +7,7 @@ import os
 import sys
 import json
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import logging
@@ -43,8 +44,7 @@ MODEL_CONFIGS = {
         "dit": {
             "repo": "tencent/HunyuanImage-2.1",
             "files": [
-                "model/dit/pytorch_model.bin",
-                "model/dit/config.json"
+                "dit/hunyuanimage2.1.safetensors"
             ],
             "folder": "diffusion_models",
             "subfolder": "hunyuanimage-v2.1"
@@ -52,8 +52,8 @@ MODEL_CONFIGS = {
         "vae": {
             "repo": "tencent/HunyuanImage-2.1", 
             "files": [
-                "model/vae/pytorch_model.bin",
-                "model/vae/config.json"
+                "vae/vae_2_1/pytorch_model.ckpt",
+                "vae/vae_2_1/config.json"
             ],
             "folder": "vae",
             "subfolder": "hunyuanimage-v2.1"
@@ -82,8 +82,8 @@ MODEL_CONFIGS = {
         "refiner": {
             "repo": "tencent/HunyuanImage-2.1",
             "files": [
-                "model/refiner/pytorch_model.bin",
-                "model/refiner/config.json"
+                "refiner/pytorch_model.bin",
+                "refiner/config.json"
             ],
             "folder": "diffusion_models",
             "subfolder": "hunyuanimage-refiner"
@@ -93,8 +93,7 @@ MODEL_CONFIGS = {
         "dit": {
             "repo": "tencent/HunyuanImage-2.1",
             "files": [
-                "model/dit-distilled/pytorch_model.bin",
-                "model/dit-distilled/config.json"
+                "dit/hunyuanimage2.1-distilled.safetensors"
             ],
             "folder": "diffusion_models",
             "subfolder": "hunyuanimage-v2.1-distilled"
@@ -180,10 +179,19 @@ class HunyuanModelManager:
                 else:
                     path = self.get_model_path(model_name, component)
                     if path:
-                        # Check if model files exist
-                        model_file = os.path.join(path, "pytorch_model.bin")
-                        safetensors_file = os.path.join(path, "model.safetensors")
-                        results[component] = os.path.exists(model_file) or os.path.exists(safetensors_file)
+                        # Check if model files exist based on the config
+                        component_config = config.get(component, {})
+                        files_to_check = component_config.get("files", [])
+                        
+                        if files_to_check:
+                            exists = all(os.path.exists(os.path.join(path, os.path.basename(f))) for f in files_to_check)
+                        else:
+                            # Fallback for older configs or components without explicit file lists
+                            model_file = os.path.join(path, "pytorch_model.bin")
+                            safetensors_file = os.path.join(path, "model.safetensors")
+                            exists = os.path.exists(model_file) or os.path.exists(safetensors_file)
+                        
+                        results[component] = exists
                     else:
                         results[component] = False
         
@@ -264,37 +272,58 @@ class HunyuanModelManager:
             return self._download_huggingface(repo, target_dir, files)
     
     def _download_huggingface(self, repo: str, target_dir: str, files: List[str]) -> bool:
-        """Download from HuggingFace using huggingface_hub library"""
+        """Download from HuggingFace using huggingface_hub library with retries."""
         if not HUGGINGFACE_HUB_AVAILABLE:
             logger.error("huggingface_hub library not found. Please install it with: pip install huggingface_hub")
             print("[HunyuanImage] huggingface_hub library not found.")
             return False
 
+        retries = 3
+        delay = 10  # seconds between retries
+
         try:
             print(f"[HunyuanImage] Downloading {repo} to {target_dir} using huggingface_hub")
-            
+
             if files == ["*"]:
-                # Download the entire repository
-                snapshot_download(
-                    repo,
-                    local_dir=target_dir,
-                    local_dir_use_symlinks=False,
-                    resume_download=True,
-                )
+                for attempt in range(retries):
+                    try:
+                        snapshot_download(
+                            repo,
+                            local_dir=target_dir,
+                            local_dir_use_symlinks=False,
+                            resume_download=True,
+                        )
+                        print(f"[HunyuanImage] Successfully downloaded {repo}")
+                        return True
+                    except Exception as e:
+                        if attempt < retries - 1:
+                            print(f"[HunyuanImage] Download attempt {attempt + 1}/{retries} failed. Retrying in {delay}s...")
+                            time.sleep(delay)
+                        else:
+                            print(f"[HunyuanImage] Final download attempt failed for {repo}.")
+                            raise e
             else:
-                # Download specific files
                 for file in files:
-                    hf_hub_download(
-                        repo,
-                        filename=file,
-                        local_dir=target_dir,
-                        local_dir_use_symlinks=False,
-                        resume_download=True,
-                    )
-            
-            print(f"[HunyuanImage] Successfully downloaded {repo}")
-            return True
-            
+                    for attempt in range(retries):
+                        try:
+                            hf_hub_download(
+                                repo,
+                                filename=file,
+                                local_dir=target_dir,
+                                local_dir_use_symlinks=False,
+                                resume_download=True,
+                            )
+                            print(f"[HunyuanImage] Successfully downloaded {file}")
+                            break  # Move to the next file
+                        except Exception as e:
+                            if attempt < retries - 1:
+                                print(f"[HunyuanImage] Download attempt {attempt + 1}/{retries} for {file} failed. Retrying in {delay}s...")
+                                time.sleep(delay)
+                            else:
+                                print(f"[HunyuanImage] Final download attempt failed for {file}.")
+                                raise e # Propagate error for the specific file
+                return True
+
         except Exception as e:
             logger.error(f"Download error using huggingface_hub for {repo}: {e}")
             print(f"[HunyuanImage] Download error: {e}")
