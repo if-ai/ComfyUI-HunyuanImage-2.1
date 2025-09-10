@@ -82,8 +82,8 @@ MODEL_CONFIGS = {
         "refiner": {
             "repo": "tencent/HunyuanImage-2.1",
             "files": [
-                "refiner/pytorch_model.bin",
-                "refiner/config.json"
+                "vae/vae_refiner/pytorch_model.pt",
+                "vae/vae_refiner/config.json"
             ],
             "folder": "diffusion_models",
             "subfolder": "hunyuanimage-refiner"
