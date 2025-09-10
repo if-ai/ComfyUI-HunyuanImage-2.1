@@ -61,8 +61,20 @@ MODEL_CONFIGS = {
         "text_encoders": {
             "mllm": {
                 "repo": "tencent/HunyuanImage-2.1",
-                "files": ["*"],
-                "allow_patterns": ["reprompt/*"],
+                "files": [
+                    "reprompt/chat_template.jinja",
+                    "reprompt/config.json",
+                    "reprompt/generation_config.json",
+                    "reprompt/hy.tiktoken",
+                    "reprompt/model-00001-of-00004.safetensors",
+                    "reprompt/model-00002-of-00004.safetensors",
+                    "reprompt/model-00003-of-00004.safetensors",
+                    "reprompt/model-00004-of-00004.safetensors",
+                    "reprompt/model.safetensors.index.json",
+                    "reprompt/special_tokens_map.json",
+                    "reprompt/tokenization_hy.py",
+                    "reprompt/tokenizer_config.json"
+                ],
                 "folder": "text_encoders",
                 "subfolder": "hunyuanimage-v2.1/llm"
             },
@@ -203,15 +215,22 @@ class HunyuanModelManager:
                 results["text_encoders"] = ref_results.get("text_encoders", {})
             else:
                 encoder_results = {}
-                for encoder_name in config["text_encoders"].keys():
+                for encoder_name, encoder_config in config["text_encoders"].items():
                     paths = self.get_model_path(model_name, "text_encoders")
                     if paths and encoder_name in paths:
                         encoder_path = paths[encoder_name]
-                        # Check for common model files
-                        has_model = any(
-                            os.path.exists(os.path.join(encoder_path, f))
-                            for f in ["pytorch_model.bin", "model.safetensors", "config.json"]
-                        )
+                        
+                        # More robust check for text encoders
+                        if encoder_name == "mllm":
+                            # Specific check for the reprompt model
+                            has_model = os.path.exists(os.path.join(encoder_path, "config.json")) and \
+                                        os.path.exists(os.path.join(encoder_path, "model.safetensors.index.json"))
+                        else:
+                            # Fallback for other text encoders
+                            has_model = any(
+                                os.path.exists(os.path.join(encoder_path, f))
+                                for f in ["pytorch_model.bin", "model.safetensors", "config.json"]
+                            )
                         encoder_results[encoder_name] = has_model
                     else:
                         encoder_results[encoder_name] = False
@@ -252,7 +271,6 @@ class HunyuanModelManager:
         repo = config["repo"]
         files = config.get("files", ["*"])
         use_modelscope = config.get("use_modelscope", False)
-        allow_patterns = config.get("allow_patterns")
         
         # Get target directory
         if folder_type in folder_paths.folder_names_and_paths:
@@ -271,9 +289,9 @@ class HunyuanModelManager:
         if use_modelscope:
             return self._download_modelscope(repo, target_dir)
         else:
-            return self._download_huggingface(repo, target_dir, files, allow_patterns=allow_patterns)
+            return self._download_huggingface(repo, target_dir, files)
     
-    def _download_huggingface(self, repo: str, target_dir: str, files: List[str], allow_patterns: Optional[List[str]] = None) -> bool:
+    def _download_huggingface(self, repo: str, target_dir: str, files: List[str]) -> bool:
         """Download from HuggingFace using huggingface_hub library with retries."""
         if not HUGGINGFACE_HUB_AVAILABLE:
             logger.error("huggingface_hub library not found. Please install it with: pip install huggingface_hub")
@@ -294,7 +312,6 @@ class HunyuanModelManager:
                             local_dir=target_dir,
                             local_dir_use_symlinks=False,
                             resume_download=True,
-                            allow_patterns=allow_patterns,
                         )
                         print(f"[HunyuanImage] Successfully downloaded {repo}")
                         return True
@@ -316,9 +333,22 @@ class HunyuanModelManager:
                                 local_dir_use_symlinks=False,
                                 resume_download=True,
                             )
+                            # Manually move file to the correct location if it's a reprompt file
+                            source_path = os.path.join(target_dir, file)
+                            dest_path = os.path.join(target_dir, os.path.basename(file))
+                            if source_path != dest_path and os.path.exists(source_path):
+                                os.rename(source_path, dest_path)
+                                # Clean up empty directories
+                                dir_to_clean = os.path.dirname(source_path)
+                                if not os.listdir(dir_to_clean):
+                                    os.rmdir(dir_to_clean)
+
                             print(f"[HunyuanImage] Successfully downloaded {file}")
                             break  # Move to the next file
                         except Exception as e:
+                            print(f"[HunyuanImage]! Exception during download of {file}. See console for details.")
+                            import traceback
+                            traceback.print_exc()
                             if attempt < retries - 1:
                                 print(f"[HunyuanImage] Download attempt {attempt + 1}/{retries} for {file} failed. Retrying in {delay}s...")
                                 time.sleep(delay)
@@ -329,7 +359,9 @@ class HunyuanModelManager:
 
         except Exception as e:
             logger.error(f"Download error using huggingface_hub for {repo}: {e}")
-            print(f"[HunyuanImage] Download error: {e}")
+            print(f"[HunyuanImage] Download error for {repo}. See console for details.")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _download_modelscope(self, repo: str, target_dir: str) -> bool:
@@ -368,7 +400,7 @@ class HunyuanModelManager:
                 if isinstance(status, dict):
                     for encoder_name, encoder_exists in status.items():
                         if not encoder_exists:
-                            missing.append(f"text_encoder:{encoder_name}")
+                            missing.append(f"text_encoders:{encoder_name}")
             elif not status:
                 missing.append(component)
         
