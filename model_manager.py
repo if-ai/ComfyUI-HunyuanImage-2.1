@@ -60,8 +60,9 @@ MODEL_CONFIGS = {
         },
         "text_encoders": {
             "mllm": {
-                "repo": "Qwen/Qwen2.5-VL-7B-Instruct",
+                "repo": "tencent/HunyuanImage-2.1",
                 "files": ["*"],
+                "allow_patterns": ["reprompt/*"],
                 "folder": "text_encoders",
                 "subfolder": "hunyuanimage-v2.1/llm"
             },
@@ -251,6 +252,7 @@ class HunyuanModelManager:
         repo = config["repo"]
         files = config.get("files", ["*"])
         use_modelscope = config.get("use_modelscope", False)
+        allow_patterns = config.get("allow_patterns")
         
         # Get target directory
         if folder_type in folder_paths.folder_names_and_paths:
@@ -269,9 +271,9 @@ class HunyuanModelManager:
         if use_modelscope:
             return self._download_modelscope(repo, target_dir)
         else:
-            return self._download_huggingface(repo, target_dir, files)
+            return self._download_huggingface(repo, target_dir, files, allow_patterns=allow_patterns)
     
-    def _download_huggingface(self, repo: str, target_dir: str, files: List[str]) -> bool:
+    def _download_huggingface(self, repo: str, target_dir: str, files: List[str], allow_patterns: Optional[List[str]] = None) -> bool:
         """Download from HuggingFace using huggingface_hub library with retries."""
         if not HUGGINGFACE_HUB_AVAILABLE:
             logger.error("huggingface_hub library not found. Please install it with: pip install huggingface_hub")
@@ -292,6 +294,7 @@ class HunyuanModelManager:
                             local_dir=target_dir,
                             local_dir_use_symlinks=False,
                             resume_download=True,
+                            allow_patterns=allow_patterns,
                         )
                         print(f"[HunyuanImage] Successfully downloaded {repo}")
                         return True
@@ -384,11 +387,13 @@ class HunyuanModelManager:
                 component, encoder_name = component_str.split(":")
                 print(f"[HunyuanImage] Downloading {component}/{encoder_name}")
                 if not self.download_component(model_name, component, encoder_name):
+                    print(f"[HunyuanImage]! Failed to download {component}/{encoder_name}")
                     logger.error(f"Failed to download {component}/{encoder_name}")
                     return False
             else:
                 print(f"[HunyuanImage] Downloading {component_str}")
                 if not self.download_component(model_name, component_str):
+                    print(f"[HunyuanImage]! Failed to download {component_str}")
                     logger.error(f"Failed to download {component_str}")
                     return False
         
