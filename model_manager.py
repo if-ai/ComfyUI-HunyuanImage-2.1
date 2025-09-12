@@ -281,10 +281,10 @@ class HunyuanModelManager:
                 subfolder_parts = subfolder.replace('\\', '/').split('/')
                 
                 # For diffusion_models, prefer the actual diffusion_models folder over unet
-                if folder_type == "diffusion_models" and len(base_paths) > 1:
+                if folder_type == "diffusion_models":
                     # Check if one of the paths contains 'diffusion_models' in its name
                     for path in base_paths:
-                        if 'diffusion_models' in path:
+                        if 'diffusion_models' in path.replace('\\', '/').split('/'):
                             full_path = os.path.join(path, *subfolder_parts)
                             logger.info(f"[_get_component_path] Returning path for {folder_type}/{subfolder}: {full_path}")
                             return full_path
