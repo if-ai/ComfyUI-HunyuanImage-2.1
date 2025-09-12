@@ -1,21 +1,31 @@
 {
-  "last_node_id": 20,
-  "last_link_id": 25,
+  "id": "c9dbd432-63f6-47e0-bcc5-7467cdcd0fdc",
+  "revision": 0,
+  "last_node_id": 22,
+  "last_link_id": 33,
   "nodes": [
     {
       "id": 1,
       "type": "HunyuanImageDualTextEncoderLoader",
-      "pos": [100, 100],
-      "size": {"0": 400, "1": 200},
+      "pos": [
+        125.88327026367188,
+        28.691184997558594
+      ],
+      "size": [
+        400,
+        200
+      ],
       "flags": {},
-      "order": 0,
+      "order": 4,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "dual_text_encoder",
           "type": "HUNYUAN_DUAL_TEXT_ENCODER",
-          "links": [1],
-          "shape": 3
+          "links": [
+            1
+          ]
         }
       ],
       "properties": {
@@ -23,7 +33,7 @@
       },
       "widgets_values": [
         true,
-        "cuda",
+        "cpu",
         "fp16",
         true,
         true
@@ -32,10 +42,16 @@
     {
       "id": 2,
       "type": "HunyuanImagePromptEncoderDual",
-      "pos": [550, 100],
-      "size": {"0": 400, "1": 200},
+      "pos": [
+        559.0028686523438,
+        34.20979309082031
+      ],
+      "size": [
+        400,
+        200
+      ],
       "flags": {},
-      "order": 1,
+      "order": 6,
       "mode": 0,
       "inputs": [
         {
@@ -48,8 +64,10 @@
         {
           "name": "conditioning",
           "type": "HUNYUAN_CONDITIONING",
-          "links": [2],
-          "shape": 3
+          "links": [
+            26,
+            33
+          ]
         }
       ],
       "properties": {
@@ -63,26 +81,34 @@
     {
       "id": 3,
       "type": "HunyuanImageDiTLoaderV2",
-      "pos": [100, 350],
-      "size": {"0": 400, "1": 200},
+      "pos": [
+        100,
+        350
+      ],
+      "size": [
+        400,
+        200
+      ],
       "flags": {},
-      "order": 2,
+      "order": 3,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
-          "name": "dit_model",
+          "name": "dit",
           "type": "HUNYUAN_DIT",
-          "links": [3],
-          "shape": 3
+          "links": [
+            27
+          ]
         }
       ],
       "properties": {
         "Node name for S&R": "HunyuanImageDiTLoaderV2"
       },
       "widgets_values": [
-        "hunyuanimage-v2.1",
+        "hunyuanimage-v2.1-distilled-fp8",
         "cuda",
-        "fp16",
+        "fp8_e5m2",
         true,
         true
       ]
@@ -90,17 +116,26 @@
     {
       "id": 4,
       "type": "HunyuanImageVAELoaderV2",
-      "pos": [100, 600],
-      "size": {"0": 400, "1": 150},
+      "pos": [
+        101.35260772705078,
+        606.4926147460938
+      ],
+      "size": [
+        400,
+        150
+      ],
       "flags": {},
-      "order": 3,
+      "order": 5,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "vae",
           "type": "HUNYUAN_VAE",
-          "links": [4, 10, 12],
-          "shape": 3
+          "links": [
+            10,
+            12
+          ]
         }
       ],
       "properties": {
@@ -109,95 +144,62 @@
       "widgets_values": [
         "cuda",
         "fp16",
-        false,
-        true
-      ]
-    },
-    {
-      "id": 5,
-      "type": "HunyuanImageSamplerV2",
-      "pos": [550, 350],
-      "size": {"0": 400, "1": 300},
-      "flags": {},
-      "order": 4,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "conditioning",
-          "type": "HUNYUAN_CONDITIONING",
-          "link": 2
-        },
-        {
-          "name": "dit_model",
-          "type": "HUNYUAN_DIT",
-          "link": 3
-        },
-        {
-          "name": "vae",
-          "type": "HUNYUAN_VAE",
-          "link": 4
-        }
-      ],
-      "outputs": [
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": [5, 7],
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "HunyuanImageSamplerV2"
-      },
-      "widgets_values": [
-        1024,
-        1024,
-        20,
-        4.5,
-        42,
-        "dpm-solver",
         false
       ]
     },
     {
       "id": 6,
       "type": "HunyuanImageVAEDecodeV2",
-      "pos": [1000, 350],
-      "size": {"0": 300, "1": 100},
+      "pos": [
+        991.0728759765625,
+        345.53643798828125
+      ],
+      "size": [
+        300,
+        100
+      ],
       "flags": {},
-      "order": 5,
+      "order": 8,
       "mode": 0,
       "inputs": [
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "link": 5
-        },
         {
           "name": "vae",
           "type": "HUNYUAN_VAE",
           "link": 10
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 28
         }
       ],
       "outputs": [
         {
           "name": "image",
           "type": "IMAGE",
-          "links": [6],
-          "shape": 3
+          "links": [
+            6
+          ]
         }
       ],
       "properties": {
         "Node name for S&R": "HunyuanImageVAEDecodeV2"
-      }
+      },
+      "widgets_values": []
     },
     {
       "id": 7,
       "type": "SaveImage",
-      "pos": [1350, 350],
-      "size": {"0": 300, "1": 270},
+      "pos": [
+        1383.544189453125,
+        344.5896301269531
+      ],
+      "size": [
+        300,
+        270
+      ],
       "flags": {},
-      "order": 6,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -206,126 +208,127 @@
           "link": 6
         }
       ],
+      "outputs": [],
       "properties": {
         "Node name for S&R": "SaveImage"
       },
-      "widgets_values": ["hunyuan_base"]
+      "widgets_values": [
+        "hunyuan_base"
+      ]
     },
     {
       "id": 10,
       "type": "Note",
-      "pos": [100, 800],
-      "size": {"0": 400, "1": 200},
+      "pos": [
+        998.8706665039062,
+        559.8159790039062
+      ],
+      "size": [
+        330.6064453125,
+        189.5254669189453
+      ],
       "flags": {},
-      "order": 7,
+      "order": 2,
       "mode": 0,
+      "inputs": [],
+      "outputs": [],
       "properties": {
         "text": "Base Generation Pipeline:\n1. Dual Text Encoder loads RePrompt + ByT5/Glyph\n2. Prompt Encoder processes text with enhancement\n3. DiT model generates latents\n4. VAE decodes to image\n\nMemory efficient: Samplers output latents only"
       },
-      "widgets_values": ["Base Generation Pipeline:\n1. Dual Text Encoder loads RePrompt + ByT5/Glyph\n2. Prompt Encoder processes text with enhancement\n3. DiT model generates latents\n4. VAE decodes to image\n\nMemory efficient: Samplers output latents only"]
+      "widgets_values": [
+        "Base Generation Pipeline:\n1. Dual Text Encoder loads RePrompt + ByT5/Glyph\n2. Prompt Encoder processes text with enhancement\n3. DiT model generates latents\n4. VAE decodes to image\n\nMemory efficient: Samplers output latents only"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
     },
     {
       "id": 11,
       "type": "HunyuanImageRefinerLoaderV2",
-      "pos": [550, 700],
-      "size": {"0": 400, "1": 200},
+      "pos": [
+        97.69217681884766,
+        879.6248779296875
+      ],
+      "size": [
+        400,
+        200
+      ],
       "flags": {},
-      "order": 8,
+      "order": 1,
       "mode": 0,
+      "inputs": [],
       "outputs": [
         {
           "name": "refiner",
           "type": "HUNYUAN_REFINER",
-          "links": [8],
-          "shape": 3
+          "links": [
+            31
+          ]
         }
       ],
       "properties": {
         "Node name for S&R": "HunyuanImageRefinerLoaderV2"
       },
       "widgets_values": [
-        "hunyuanimage-refiner",
+        "hunyuanimage-refiner-fp8",
         "cuda",
-        "fp16",
+        "fp8_e5m2",
         true,
         true
       ]
     },
     {
-      "id": 12,
-      "type": "HunyuanImageRefinerSampleV2",
-      "pos": [1000, 700],
-      "size": {"0": 400, "1": 200},
-      "flags": {},
-      "order": 9,
-      "mode": 0,
-      "inputs": [
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "link": 7
-        },
-        {
-          "name": "refiner",
-          "type": "HUNYUAN_REFINER",
-          "link": 8
-        }
-      ],
-      "outputs": [
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "links": [9],
-          "shape": 3
-        }
-      ],
-      "properties": {
-        "Node name for S&R": "HunyuanImageRefinerSampleV2"
-      },
-      "widgets_values": [
-        5,
-        1.0
-      ]
-    },
-    {
       "id": 13,
       "type": "HunyuanImageVAEDecodeV2",
-      "pos": [1450, 700],
-      "size": {"0": 300, "1": 100},
+      "pos": [
+        997.6929321289062,
+        879.6248779296875
+      ],
+      "size": [
+        300,
+        100
+      ],
       "flags": {},
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [
-        {
-          "name": "latent",
-          "type": "LATENT",
-          "link": 9
-        },
         {
           "name": "vae",
           "type": "HUNYUAN_VAE",
           "link": 12
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 32
         }
       ],
       "outputs": [
         {
           "name": "image",
           "type": "IMAGE",
-          "links": [11],
-          "shape": 3
+          "links": [
+            11
+          ]
         }
       ],
       "properties": {
         "Node name for S&R": "HunyuanImageVAEDecodeV2"
-      }
+      },
+      "widgets_values": []
     },
     {
       "id": 14,
       "type": "SaveImage",
-      "pos": [1800, 700],
-      "size": {"0": 300, "1": 270},
+      "pos": [
+        1347.6929931640625,
+        879.6248779296875
+      ],
+      "size": [
+        300,
+        270
+      ],
       "flags": {},
-      "order": 11,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
@@ -334,61 +337,297 @@
           "link": 11
         }
       ],
+      "outputs": [],
       "properties": {
         "Node name for S&R": "SaveImage"
       },
-      "widgets_values": ["hunyuan_refined"]
+      "widgets_values": [
+        "hunyuan_refined"
+      ]
     },
     {
       "id": 15,
       "type": "Note",
-      "pos": [550, 950],
-      "size": {"0": 400, "1": 150},
+      "pos": [
+        97.69217681884766,
+        1129.6246337890625
+      ],
+      "size": [
+        400,
+        150
+      ],
       "flags": {},
-      "order": 12,
+      "order": 0,
       "mode": 0,
+      "inputs": [],
+      "outputs": [],
       "properties": {
         "text": "Optional Refiner Pipeline:\n- Takes latents from base generation\n- Applies refinement steps\n- Outputs enhanced latents\n- Separate VAE decode for memory efficiency"
       },
-      "widgets_values": ["Optional Refiner Pipeline:\n- Takes latents from base generation\n- Applies refinement steps\n- Outputs enhanced latents\n- Separate VAE decode for memory efficiency"]
+      "widgets_values": [
+        "Optional Refiner Pipeline:\n- Takes latents from base generation\n- Applies refinement steps\n- Outputs enhanced latents\n- Separate VAE decode for memory efficiency"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 21,
+      "type": "HunyuanImageModularSamplerV2",
+      "pos": [
+        558.1035766601562,
+        348.25848388671875
+      ],
+      "size": [
+        326.3540954589844,
+        246
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "dit",
+          "type": "HUNYUAN_DIT",
+          "link": 27
+        },
+        {
+          "name": "conditioning",
+          "type": "HUNYUAN_CONDITIONING",
+          "link": 26
+        }
+      ],
+      "outputs": [
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "links": [
+            28,
+            30
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HunyuanImageModularSamplerV2"
+      },
+      "widgets_values": [
+        1024,
+        1024,
+        8,
+        3.5,
+        95864047242470,
+        "randomize",
+        4,
+        "dpm_solver"
+      ]
+    },
+    {
+      "id": 22,
+      "type": "HunyuanImageRefinerSamplerV2",
+      "pos": [
+        587.3272094726562,
+        875.2163696289062
+      ],
+      "size": [
+        320.9058532714844,
+        194
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "refiner",
+          "type": "HUNYUAN_REFINER",
+          "link": 31
+        },
+        {
+          "name": "conditioning",
+          "type": "HUNYUAN_CONDITIONING",
+          "link": 33
+        },
+        {
+          "name": "latent",
+          "type": "LATENT",
+          "link": 30
+        }
+      ],
+      "outputs": [
+        {
+          "name": "refined_latent",
+          "type": "LATENT",
+          "links": [
+            32
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HunyuanImageRefinerSamplerV2"
+      },
+      "widgets_values": [
+        20,
+        3,
+        189507803233078,
+        "randomize",
+        0.3
+      ]
     }
   ],
   "links": [
-    [1, 1, 0, 2, 0, "HUNYUAN_DUAL_TEXT_ENCODER"],
-    [2, 2, 0, 5, 0, "HUNYUAN_CONDITIONING"],
-    [3, 3, 0, 5, 1, "HUNYUAN_DIT"],
-    [4, 4, 0, 5, 2, "HUNYUAN_VAE"],
-    [5, 5, 0, 6, 0, "LATENT"],
-    [6, 6, 0, 7, 0, "IMAGE"],
-    [7, 5, 0, 12, 0, "LATENT"],
-    [8, 11, 0, 12, 1, "HUNYUAN_REFINER"],
-    [9, 12, 0, 13, 0, "LATENT"],
-    [10, 4, 0, 6, 1, "HUNYUAN_VAE"],
-    [11, 13, 0, 14, 0, "IMAGE"],
-    [12, 4, 0, 13, 1, "HUNYUAN_VAE"]
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "HUNYUAN_DUAL_TEXT_ENCODER"
+    ],
+    [
+      6,
+      6,
+      0,
+      7,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      4,
+      0,
+      6,
+      0,
+      "HUNYUAN_VAE"
+    ],
+    [
+      11,
+      13,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      12,
+      4,
+      0,
+      13,
+      0,
+      "HUNYUAN_VAE"
+    ],
+    [
+      26,
+      2,
+      0,
+      21,
+      1,
+      "HUNYUAN_CONDITIONING"
+    ],
+    [
+      27,
+      3,
+      0,
+      21,
+      0,
+      "HUNYUAN_DIT"
+    ],
+    [
+      28,
+      21,
+      0,
+      6,
+      1,
+      "LATENT"
+    ],
+    [
+      30,
+      21,
+      0,
+      22,
+      2,
+      "LATENT"
+    ],
+    [
+      31,
+      11,
+      0,
+      22,
+      0,
+      "HUNYUAN_REFINER"
+    ],
+    [
+      32,
+      22,
+      0,
+      13,
+      1,
+      "LATENT"
+    ],
+    [
+      33,
+      2,
+      0,
+      22,
+      1,
+      "HUNYUAN_CONDITIONING"
+    ]
   ],
   "groups": [
     {
+      "id": 1,
       "title": "Text Encoding (Dual Encoder)",
-      "bounding": [80, 20, 900, 320],
-      "color": "#3f789e"
+      "bounding": [
+        87.92080688476562,
+        -60.939292907714844,
+        900,
+        320
+      ],
+      "color": "#3f789e",
+      "font_size": 24,
+      "flags": {}
     },
     {
+      "id": 2,
       "title": "Base Generation",
-      "bounding": [80, 270, 1600, 510],
-      "color": "#4b7c4b"
+      "bounding": [
+        80,
+        270,
+        1600,
+        510
+      ],
+      "color": "#4b7c4b",
+      "font_size": 24,
+      "flags": {}
     },
     {
+      "id": 3,
       "title": "Refinement (Optional)",
-      "bounding": [530, 620, 1600, 500],
-      "color": "#7c4b4b"
+      "bounding": [
+        77.69218444824219,
+        799.6248779296875,
+        1600,
+        500
+      ],
+      "color": "#7c4b4b",
+      "font_size": 24,
+      "flags": {}
     }
   ],
   "config": {},
   "extra": {
     "info": "HunyuanImage 2.1 workflow with dual text encoder (RePrompt + ByT5/Glyph)",
     "author": "ComfyUI-HunyuanImage",
-    "date": "2024"
+    "date": "2024",
+    "ds": {
+      "scale": 0.7393197638613878,
+      "offset": [
+        -66.51774972856744,
+        -215.0084822403189
+      ]
+    },
+    "frontendVersion": "1.25.11",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
   },
   "version": 0.4
 }

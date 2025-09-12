@@ -215,10 +215,20 @@ class HunyuanImageDiTLoaderV2:
         
         # Check and download model if auto_download is enabled
         if auto_download:
-            print(f"[HunyuanImage] Checking models for {model_name}")
-            model_manager.check_and_download_models(model_name)
+            print(f"[HunyuanImage] Checking DiT model: {model_name}")
+            # Use ensure_models which properly handles references
+            if not model_manager.ensure_models(model_name, auto_download=True):
+                raise RuntimeError(f"Failed to ensure models for {model_name}")
         
         model_path = model_manager.get_model_path(model_name, "dit")
+        
+        # Verify the model exists
+        if not model_path:
+            if auto_download:
+                raise RuntimeError(f"DiT model {model_name} not found even after download attempt")
+            else:
+                raise RuntimeError(f"DiT model {model_name} not found. Please enable auto_download or download manually.")
+        
         print(f"[HunyuanImage] Loading DiT from: {model_path}")
         
         # Determine model type
@@ -283,6 +293,7 @@ class HunyuanImageVAELoaderV2:
                 "device": (["cuda", "cpu"],),
                 "dtype": (["bf16", "fp16", "fp32"],),
                 "enable_offloading": ("BOOLEAN", {"default": True}),
+                "auto_download": ("BOOLEAN", {"default": True}),
             }
         }
     
@@ -291,7 +302,7 @@ class HunyuanImageVAELoaderV2:
     FUNCTION = "load_vae"
     CATEGORY = "HunyuanImage"
     
-    def load_vae(self, device, dtype, enable_offloading):
+    def load_vae(self, device, dtype, enable_offloading, auto_download):
         """Load VAE"""
         
         dtype_map = {
@@ -302,7 +313,31 @@ class HunyuanImageVAELoaderV2:
         torch_dtype = dtype_map[dtype]
         
         model_manager = HunyuanModelManager()
+        
+        # Check and download VAE if needed
+        if auto_download:
+            print(f"[HunyuanImage] Checking VAE model...")
+            # Check if VAE exists
+            vae_path = model_manager.get_component_path("vae", "hunyuanimage-v2.1")
+            
+            # Check for essential VAE files
+            vae_exists = False
+            if vae_path and os.path.exists(vae_path):
+                # Check for config.json which is required for loading
+                config_path = os.path.join(vae_path, "vae_2_1", "config.json")
+                model_path = os.path.join(vae_path, "vae_2_1", "pytorch_model.ckpt")
+                vae_exists = os.path.exists(config_path) or os.path.exists(model_path)
+            
+            if not vae_exists:
+                print(f"[HunyuanImage] VAE not found, downloading...")
+                if not model_manager.download_component("hunyuanimage-v2.1", "vae"):
+                    raise RuntimeError("Failed to download VAE model")
+        
         vae_path = model_manager.get_component_path("vae", "hunyuanimage-v2.1")
+        
+        # Check if the path exists after download attempt
+        if not vae_path or not os.path.exists(vae_path):
+            raise RuntimeError(f"VAE model not found at {vae_path}. Please enable auto_download or download manually.")
         
         print(f"[HunyuanImage] Loading VAE from: {vae_path}")
         
@@ -411,10 +446,20 @@ class HunyuanImageRefinerLoaderV2:
         # Check and download refiner if needed
         if auto_download:
             print(f"[HunyuanImage] Checking refiner model: {refiner_model}")
-            model_manager.check_and_download_models(refiner_model)
+            # Use ensure_models which properly handles references
+            if not model_manager.ensure_models(refiner_model, auto_download=True):
+                raise RuntimeError(f"Failed to ensure models for {refiner_model}")
         
         # Get refiner path
         refiner_path = model_manager.get_model_path(refiner_model, "refiner")
+        
+        # Verify the refiner exists
+        if not refiner_path:
+            if auto_download:
+                raise RuntimeError(f"Refiner model {refiner_model} not found even after download attempt")
+            else:
+                raise RuntimeError(f"Refiner model {refiner_model} not found. Please enable auto_download or download manually.")
+        
         print(f"[HunyuanImage] Loading Refiner from: {refiner_path}")
         
         # Check if it's an FP8 model by looking at the model name or checking file extension

@@ -38,7 +38,7 @@ python install.py
 cd ComfyUI-HunyuanImage-2.1
 pip install -r requirements.txt
 pip install -e .  # Install hyimage package
-pip install flash-attn==2.7.3 --no-build-isolation  # Optional but recommended
+pip install flash-attn>=2.7.3 --no-build-isolation  # Optional but recommended
 ```
 
 3. Model Management:
