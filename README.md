@@ -210,46 +210,33 @@ Optimize models with PyTorch compilation.
 
 ## Troubleshooting
 
-### Import Error: "HunyuanImagePipelineConfig is not defined"
-This error indicates the hyimage package is not properly installed:
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed solutions to common issues including:
+- FP8 model download problems
+- VAE file location errors
+- Permission denied errors
+- Memory optimization tips
+- Import errors
 
-1. **Run the installation script:**
-   ```bash
-   cd ComfyUI/custom_nodes/ComfyUI-HunyuanImage-2.1
-   python install.py
-   ```
+### Quick Fixes
 
-2. **Or install manually:**
-   ```bash
-   pip install -e .  # Install hyimage package in editable mode
-   pip install -r requirements.txt
-   ```
+#### Import Error: "HunyuanImagePipelineConfig is not defined"
+```bash
+cd ComfyUI/custom_nodes/ComfyUI-HunyuanImage-2.1
+python install.py  # or: pip install -e .
+```
 
-3. **Restart ComfyUI** after installation
+#### Out of Memory
+- Use FP8 models (40% memory reduction)
+- Enable CPU offloading on all loaders
+- Use modular pipeline (latent-only output)
+- Reduce resolution to 1024x1024
 
-4. **Verify installation:**
-   ```bash
-   python -c "from hyimage.diffusion.pipelines.hunyuanimage_pipeline import HunyuanImagePipelineConfig; print('Success!')"
-   ```
-
-### Out of Memory
-1. Enable all offloading options
-2. Use INT8 or INT4 quantization
-3. Reduce resolution
-4. Enable attention slicing
-
-### Slow Generation
-1. Enable torch compile
-2. Use distilled model
-3. Reduce inference steps
-4. Enable Flash Attention
-
-### Model Download Issues
-If automatic download fails:
-1. Check internet connection
-2. Ensure huggingface-cli is installed: `pip install huggingface-hub[cli]`
-3. Try manual download with the commands in the Installation section
-4. Check disk space (requires ~50GB for all models)
+#### Model Download Issues
+```bash
+# Manual FP8 download example
+huggingface-cli download drbaph/HunyuanImage-2.1_fp8 hunyuanimage2.1-distilled_fp8_e4m3fn.safetensors \
+  --local-dir ComfyUI/models/diffusion_models/hunyuanimage-v2.1-distilled-fp8
+```
 
 ## Credits
 

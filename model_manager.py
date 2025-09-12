@@ -458,8 +458,32 @@ class HunyuanModelManager:
                                 resume_download=True,
                             )
                             
+                            # Handle VAE files - move them from nested structure
+                            if "vae/vae_2_1/" in file:
+                                # Files download to target_dir/vae/vae_2_1/
+                                # We need them in target_dir/vae_2_1/
+                                source_path = os.path.join(target_dir, file)
+                                dest_dir = os.path.join(target_dir, "vae_2_1")
+                                os.makedirs(dest_dir, exist_ok=True)
+                                
+                                filename = os.path.basename(file)
+                                dest_path = os.path.join(dest_dir, filename)
+                                
+                                if os.path.exists(source_path) and not os.path.exists(dest_path):
+                                    import shutil
+                                    shutil.move(source_path, dest_path)
+                                    logger.info(f"[HunyuanImage] Moved VAE file from {source_path} to {dest_path}")
+                                    
+                                    # Clean up the nested vae directory structure
+                                    vae_2_1_dir = os.path.join(target_dir, "vae", "vae_2_1")
+                                    if os.path.exists(vae_2_1_dir) and not os.listdir(vae_2_1_dir):
+                                        os.rmdir(vae_2_1_dir)
+                                    vae_dir = os.path.join(target_dir, "vae")
+                                    if os.path.exists(vae_dir) and not os.listdir(vae_dir):
+                                        os.rmdir(vae_dir)
+                            
                             # Handle reprompt files - move them to the correct location
-                            if "reprompt/" in file:
+                            elif "reprompt/" in file:
                                 source_path = os.path.join(target_dir, file)
                                 dest_path = os.path.join(target_dir, os.path.basename(file))
                                 if source_path != dest_path and os.path.exists(source_path):
