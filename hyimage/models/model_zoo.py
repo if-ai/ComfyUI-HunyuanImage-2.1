@@ -15,8 +15,7 @@ from hyimage.common.config.base_config import (
     VAEConfig,
 )
 from hyimage.models.text_encoder import TextEncoder
-
-HUNYUANIMAGE_V2_1_MODEL_ROOT = os.environ.get("HUNYUANIMAGE_V2_1_MODEL_ROOT", "./ckpts")
+from model_manager import model_manager
 
 # =============================================================================
 # MODEL CONFIGURATIONS
@@ -27,6 +26,13 @@ HUNYUANIMAGE_V2_1_MODEL_ROOT = os.environ.get("HUNYUANIMAGE_V2_1_MODEL_ROOT", ".
 # =============================================================================
 
 def HUNYUANIMAGE_V2_1_TEXT_ENCODER(**kwargs):
+    model_name = "hunyuanimage-v2.1"
+    text_encoder_path = model_manager.get_model_path(model_name, "text_encoders", "mllm")
+    
+    # Debug logging
+    import loguru
+    loguru.logger.info(f"[HUNYUANIMAGE_V2_1_TEXT_ENCODER] text_encoder_path: {text_encoder_path}")
+    
     return TextEncoderConfig(
         model=L(TextEncoder)(
             text_encoder_type="llm",
@@ -43,40 +49,49 @@ def HUNYUANIMAGE_V2_1_TEXT_ENCODER(**kwargs):
             device=None,
         ),
         prompt_template="dit-llm-encode-v2",
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/text_encoder",
+        load_from=text_encoder_path,
         text_len=1000,
     )
 
 
 def HUNYUANIMAGE_V2_1_VAE_32x(**kwargs):
+    model_name = "hunyuanimage-v2.1"
+    vae_path = model_manager.get_model_path(model_name, "vae")
+    
     return VAEConfig(
         model=L(load_vae)(
             vae_path=None,
             device="cuda",
         ),
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/vae/vae_2_1",
+        load_from=vae_path,
         cpu_offload=False,
     )
 
 
 def HUNYUANIMAGE_V2_1_DIT(**kwargs):
+    model_name = "hunyuanimage-v2.1"
+    dit_path = model_manager.get_model_path(model_name, "dit")
+    
     return DiTConfig(
         model=copy.deepcopy(hunyuanimage_v2_1_cfg),
         use_lora=False,
         use_cpu_offload=False,
         gradient_checkpointing=True,
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/dit/hunyuanimage2.1.safetensors",
+        load_from=os.path.join(dit_path, "hunyuanimage2.1.safetensors") if dit_path else None,
         use_compile=True,
     )
 
 
 def HUNYUANIMAGE_V2_1_DIT_CFG_DISTILL(**kwargs):
+    model_name = "hunyuanimage-v2.1-distilled"
+    dit_path = model_manager.get_model_path(model_name, "dit")
+    
     return DiTConfig(
         model=copy.deepcopy(hunyuanimage_v2_1_distilled_cfg),
         use_lora=False,
         use_cpu_offload=False,
         gradient_checkpointing=True,
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/dit/hunyuanimage2.1-distilled.safetensors",
+        load_from=os.path.join(dit_path, "hunyuanimage2.1-distilled.safetensors") if dit_path else None,
         use_compile=True,
     )
 
@@ -85,27 +100,36 @@ def HUNYUANIMAGE_V2_1_DIT_CFG_DISTILL(**kwargs):
 # =============================================================================
 
 def HUNYUANIMAGE_REFINER_DIT(**kwargs):
+    model_name = "hunyuanimage-v2.1"
+    refiner_path = model_manager.get_model_path(model_name, "refiner")
+    
     return DiTConfig(
         model=copy.deepcopy(hunyuanimage_refiner_cfg),
         use_lora=False,
         use_cpu_offload=False,
         gradient_checkpointing=True,
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/dit/hunyuanimage-refiner.safetensors",
+        load_from=os.path.join(refiner_path, "hunyuanimage-refiner.safetensors") if refiner_path else None,
         use_compile=True,
     )
 
 def HUNYUANIMAGE_REFINER_VAE_16x(**kwargs):
+    model_name = "hunyuanimage-v2.1"
+    refiner_path = model_manager.get_model_path(model_name, "refiner")
+    
     return VAEConfig(
         model=L(load_refiner_vae)(
             vae_path=None,
             device="cuda",
         ),
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/vae/vae_refiner",
+        load_from=os.path.join(refiner_path, "vae_refiner") if refiner_path else None,
         cpu_offload=False,
     )
 
 
 def HUNYUANIMAGE_REFINER_TEXT_ENCODER(**kwargs):
+    model_name = "hunyuanimage-v2.1"
+    text_encoder_path = model_manager.get_model_path(model_name, "text_encoders", "mllm")
+    
     return TextEncoderConfig(
         model=L(TextEncoder)(
             text_encoder_type="llm",
@@ -122,7 +146,7 @@ def HUNYUANIMAGE_REFINER_TEXT_ENCODER(**kwargs):
             device=None,
         ),
         prompt_template="dit-llm-encode",
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/text_encoder",
+        load_from=text_encoder_path,
         text_len=256,
     )
 
@@ -133,11 +157,13 @@ def HUNYUANIMAGE_REFINER_TEXT_ENCODER(**kwargs):
 
 def HUNYUANIMAGE_REPROMPT(**kwargs):
     from hyimage.models.reprompt import RePrompt
+    model_name = "hunyuanimage-v2.1"
+    reprompt_path = model_manager.get_model_path(model_name, "text_encoders", "mllm")
     
     return RepromptConfig(
         model=L(RePrompt)(
             models_root_path=None,
             device_map="auto",
         ),
-        load_from=f"{HUNYUANIMAGE_V2_1_MODEL_ROOT}/reprompt",
+        load_from=reprompt_path,
     )

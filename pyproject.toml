@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-hunyuanimage-2.1"
 description = "HunyuanImage-2.1: An Efficient Diffusion Model for High-Resolution (2K) Text-to-Image Generation"
-version = "0.0.1"
+version = "0.0.2"
 license = { file = "LICENSE" }
 dependencies = [
     "tqdm",

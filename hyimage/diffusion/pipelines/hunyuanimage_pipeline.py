@@ -9,6 +9,7 @@ import loguru
 import torch
 from hyimage.common.config.lazy import DictConfig
 from PIL import Image
+import comfy.utils
 
 from hyimage.common.config import instantiate
 from hyimage.common.constants import PRECISION_TO_TYPE
@@ -53,15 +54,20 @@ class HunyuanImagePipelineConfig:
     torch_dtype: str = "bf16"
     device: str = "cuda"
     version: str = ""
+    custom_glyph_encoder_path: str = None
 
     @classmethod
-    def create_default(cls, version: str = "v2.1", use_distilled: bool = False, **kwargs):
+    def create_default(cls, version: str = "v2.1", use_distilled: bool = False, 
+                      custom_text_encoder_path: str = None, custom_reprompt_path: str = None, 
+                      custom_glyph_encoder_path: str = None, **kwargs):
         """
         Create a default configuration for specified HunyuanImage version.
 
         Args:
             version: HunyuanImage version, only "v2.1" is supported
             use_distilled: Whether to use distilled model
+            custom_text_encoder_path: Optional path to custom text encoder model
+            custom_glyph_encoder_path: Optional path to custom glyph encoder model
             **kwargs: Additional configuration options
         """
         if version == "v2.1":
@@ -70,14 +76,32 @@ class HunyuanImagePipelineConfig:
                 HUNYUANIMAGE_V2_1_DIT_CFG_DISTILL,
                 HUNYUANIMAGE_V2_1_VAE_32x,
                 HUNYUANIMAGE_V2_1_TEXT_ENCODER,
+                HUNYUANIMAGE_REPROMPT,
             )
             dit_config = HUNYUANIMAGE_V2_1_DIT_CFG_DISTILL() if use_distilled else HUNYUANIMAGE_V2_1_DIT()
+            text_encoder_config = HUNYUANIMAGE_V2_1_TEXT_ENCODER()
+            reprompt_config = HUNYUANIMAGE_REPROMPT()
+            
+            # Override text encoder path if custom path provided
+            if custom_text_encoder_path:
+                text_encoder_config.load_from = custom_text_encoder_path
+                print(f"[HunyuanImage] Using custom text encoder: {custom_text_encoder_path}")
+            
+            # Override reprompt path if custom path provided
+            if custom_reprompt_path:
+                reprompt_config.load_from = custom_reprompt_path
+                print(f"[HunyuanImage] Using custom reprompt model: {custom_reprompt_path}")
+            
+            # Note: Glyph encoder path would need to be handled differently
+            # as it's loaded separately in the pipeline
+            
             return cls(
                 dit_config=dit_config,
                 vae_config=HUNYUANIMAGE_V2_1_VAE_32x(),
-                text_encoder_config=HUNYUANIMAGE_V2_1_TEXT_ENCODER(),
-                reprompt_config=HUNYUANIMAGE_REPROMPT(),
+                text_encoder_config=text_encoder_config,
+                reprompt_config=reprompt_config,
                 version=version,
+                custom_glyph_encoder_path=custom_glyph_encoder_path,
                 **kwargs
             )
         else:
@@ -158,9 +182,15 @@ class HunyuanImagePipeline:
                 load_hunyuan_dit_state_dict(self.dit, dit_config.load_from, strict=True)
             else:
                 raise ValueError("Must provide checkpoint path for DiT model")
-            self.dit = self.dit.to(self.device, dtype=self.torch_dtype)
+            
+            # Handle CPU offloading - load to CPU first if offloading is enabled
+            if self.enable_dit_offloading:
+                self.dit = self.dit.to('cpu', dtype=self.torch_dtype)
+            else:
+                self.dit = self.dit.to(self.device, dtype=self.torch_dtype)
+            
             self.dit.eval()
-            if getattr(dit_config, "use_compile", False):
+            if getattr(dit_config, "use_compile", False) and not self.enable_dit_offloading:
                 self.dit = torch.compile(self.dit)
             loguru.logger.info("✓ DiT model loaded")
         except Exception as e:
@@ -183,7 +213,7 @@ class HunyuanImagePipeline:
             self.text_encoder = instantiate(
                 text_encoder_config.model,
                 max_length=max_length,
-                text_encoder_path=os.path.join(text_encoder_config.load_from, "llm"),
+                text_encoder_path=text_encoder_config.load_from,
                 prompt_template=prompt_template,
                 logger=None,
                 device=self.device,
@@ -234,7 +264,6 @@ class HunyuanImagePipeline:
         return self._reprompt_model
 
     def _load_byt5(self):
-
         assert self.dit is not None, "DiT model must be loaded before byT5"
 
         if not self.use_byt5:
@@ -243,36 +272,138 @@ class HunyuanImagePipeline:
             return
 
         try:
-
             text_encoder_config = self.config.text_encoder_config
+            if self.config.text_encoder_config.load_from is None:
+                loguru.logger.warning("text_encoder_config.load_from is None, skipping byT5 loading")
+                self.byt5_processor = None
+                self.byt5_mapper = None
+                self.byt5_kwargs = None
+                self.prompt_format = None
+                return
+                
+            load_from_path = os.path.normpath(self.config.text_encoder_config.load_from)
+            text_encoder_base = os.path.dirname(load_from_path)
+            
+            glyph_root = None
+            byT5_ckpt_path = None
 
-            glyph_root = os.path.join(self.config.text_encoder_config.load_from, "Glyph-SDXL-v2")
-            if not os.path.exists(glyph_root):
-                raise RuntimeError(
-                    f"Glyph checkpoint not found from '{glyph_root}'. \n"
-                    "Please download from https://modelscope.cn/models/AI-ModelScope/Glyph-SDXL-v2/files.\n\n"
-                    "- Required files:\n"
-                    "    Glyph-SDXL-v2\n"
-                    "    ├── assets\n"
-                    "    │   ├── color_idx.json\n"
-                    "    │   └── multilingual_10-lang_idx.json\n"
-                    "    └── checkpoints\n"
-                    "        └── byt5_model.pt\n"
-                )
-                    
+            # Handle custom safetensor file for glyph encoder
+            if self.config.custom_glyph_encoder_path and self.config.custom_glyph_encoder_path.lower().endswith((".safetensors", ".pt")):
+                loguru.logger.info(f"Loading custom glyph encoder from: {self.config.custom_glyph_encoder_path}")
+                byT5_ckpt_path = self.config.custom_glyph_encoder_path
+                # Assume 'assets' directory is relative to the safetensor file's parent directory
+                assets_root = os.path.dirname(os.path.dirname(byT5_ckpt_path)) # Go up one level from the file
+                assets_path = os.path.join(assets_root, "assets")
+                
+                if os.path.isdir(assets_path):
+                    glyph_root = assets_root
+                    loguru.logger.info(f"Found assets directory at: {assets_path}")
+                else:
+                    # Fallback to searching in standard text_encoder paths if not found
+                    possible_assets_paths = [
+                        os.path.join(text_encoder_base, "Glyph-SDXL-v2"),
+                        os.path.join(os.path.dirname(text_encoder_base), "Glyph-SDXL-v2"),
+                    ]
+                    for path in possible_assets_paths:
+                        if os.path.isdir(os.path.join(path, "assets")):
+                            glyph_root = path
+                            loguru.logger.info(f"Found assets directory in fallback path: {os.path.join(path, 'assets')}")
+                            break
+                    if glyph_root is None:
+                         raise RuntimeError(f"Could not find 'assets' directory containing color_idx.json and multilingual_10-lang_idx.json near {byT5_ckpt_path} or in standard model paths.")
 
-            byT5_google_path = os.path.join(text_encoder_config.load_from, "byt5-small")
-            if not os.path.exists(byT5_google_path):
-                loguru.logger.warning(f"ByT5 google path not found from: {byT5_google_path}. Try downloading from https://huggingface.co/google/byt5-small.")
+            # Original logic for finding Glyph-SDXL-v2 directory
+            if not byT5_ckpt_path:
+                # Import folder_paths from ComfyUI to get the correct text_encoders directory
+                try:
+                    import folder_paths
+                    if 'text_encoders' in folder_paths.folder_names_and_paths:
+                        text_encoder_dirs = folder_paths.folder_names_and_paths['text_encoders'][0]
+                    else:
+                        text_encoder_dirs = []
+                except:
+                    text_encoder_dirs = []
+                
+                possible_glyph_paths = []
+                
+                # Add paths based on ComfyUI's text_encoders directories
+                for base_dir in text_encoder_dirs:
+                    possible_glyph_paths.extend([
+                        os.path.join(base_dir, "hunyuanimage-v2.1", "Glyph-SDXL-v2"),
+                        os.path.join(base_dir, "Glyph-SDXL-v2"),
+                    ])
+                
+                # Also check relative to the current text_encoder_base if it exists
+                if text_encoder_base:
+                    possible_glyph_paths.extend([
+                        os.path.join(text_encoder_base, "Glyph-SDXL-v2"),
+                        os.path.join(os.path.dirname(text_encoder_base), "Glyph-SDXL-v2"),
+                        os.path.join(text_encoder_base, "..", "hunyuanimage-v2.1", "Glyph-SDXL-v2"),
+                        os.path.join(os.path.dirname(text_encoder_base), "hunyuanimage-v2.1", "Glyph-SDXL-v2"),
+                    ])
+                
+                # Remove duplicates and normalize paths
+                possible_glyph_paths = list(set([os.path.normpath(p) for p in possible_glyph_paths]))
+                
+                for path in possible_glyph_paths:
+                    if os.path.exists(path):
+                        glyph_root = path
+                        loguru.logger.info(f"Found Glyph model at: {glyph_root}")
+                        break
+                
+                if glyph_root is None:
+                    loguru.logger.warning(f"Glyph model directory not found. Tried paths:")
+                    for path in possible_glyph_paths:
+                        loguru.logger.warning(f"  - {path}")
+                    raise RuntimeError(f"Glyph model directory not found.")
+
+                byT5_ckpt_path = os.path.join(glyph_root, "checkpoints/byt5_model.pt")
+
+            # Find byT5-small tokenizer
+            possible_byt5_paths = []
+            
+            # Add paths based on ComfyUI's text_encoders directories
+            for base_dir in text_encoder_dirs:
+                possible_byt5_paths.extend([
+                    os.path.join(base_dir, "hunyuanimage-v2.1", "byt5-small"),
+                    os.path.join(base_dir, "byt5-small"),
+                ])
+            
+            # Also check relative to the current text_encoder_base
+            if text_encoder_base:
+                possible_byt5_paths.extend([
+                    os.path.join(text_encoder_base, "byt5-small"),
+                    os.path.join(os.path.dirname(text_encoder_base), "byt5-small"),
+                    os.path.join(text_encoder_base, "..", "hunyuanimage-v2.1", "byt5-small"),
+                    os.path.join(os.path.dirname(text_encoder_base), "hunyuanimage-v2.1", "byt5-small"),
+                ])
+            
+            # Remove duplicates and normalize paths
+            possible_byt5_paths = list(set([os.path.normpath(p) for p in possible_byt5_paths]))
+
+            byT5_google_path = None
+            for path in possible_byt5_paths:
+                if os.path.exists(path):
+                    byT5_google_path = path
+                    loguru.logger.info(f"Found byT5 tokenizer at: {byT5_google_path}")
+                    break
+            
+            if byT5_google_path is None:
+                loguru.logger.warning(f"ByT5 tokenizer not found locally. Tried paths:")
+                for path in possible_byt5_paths:
+                    loguru.logger.warning(f"  - {path}")
+                loguru.logger.info("Will try to use HuggingFace model: google/byt5-small")
                 byT5_google_path = "google/byt5-small"
-
 
             multilingual_prompt_format_color_path = os.path.join(glyph_root, "assets/color_idx.json")
             multilingual_prompt_format_font_path = os.path.join(glyph_root, "assets/multilingual_10-lang_idx.json")
 
+            if not os.path.exists(multilingual_prompt_format_color_path) or not os.path.exists(multilingual_prompt_format_font_path):
+                raise RuntimeError(f"Could not find color_idx.json or multilingual_10-lang_idx.json in {os.path.join(glyph_root, 'assets')}")
+
             byt5_args = dict(
                 byT5_google_path=byT5_google_path,
-                byT5_ckpt_path=os.path.join(glyph_root, "checkpoints/byt5_model.pt"),
+                byT5_ckpt_path=byT5_ckpt_path,
                 multilingual_prompt_format_color_path=multilingual_prompt_format_color_path,
                 multilingual_prompt_format_font_path=multilingual_prompt_format_font_path,
                 byt5_max_length=128

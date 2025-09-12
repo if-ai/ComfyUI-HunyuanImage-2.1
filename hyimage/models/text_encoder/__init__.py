@@ -68,10 +68,65 @@ def load_text_encoder(
         logger.info(f"Loading text encoder model ({text_encoder_type}) from: {text_encoder_path}")
 
     if text_encoder_type == 'llm':
-        text_encoder = AutoModelForVision2Seq.from_pretrained(
-            text_encoder_path,
-            torch_dtype="auto"
-        )
+        import os
+        # Check if it's a single safetensor file or a directory/HF repo
+        if os.path.isfile(text_encoder_path) and text_encoder_path.endswith(('.safetensors', '.pt', '.pth', '.bin')):
+            # It's a single file - need to handle differently
+            # For single safetensor files, we need to load the weights directly
+            # First, try to find a config.json in the parent directory or nearby
+            parent_dir = os.path.dirname(text_encoder_path)
+            config_path = os.path.join(parent_dir, "config.json")
+            
+            if not os.path.exists(config_path):
+                # Try to find config in hunyuanimage-v2.1/llm directory as fallback
+                import folder_paths
+                if 'text_encoders' in folder_paths.folder_names_and_paths:
+                    for base_dir in folder_paths.folder_names_and_paths['text_encoders'][0]:
+                        fallback_config = os.path.join(base_dir, "hunyuanimage-v2.1", "llm", "config.json")
+                        if os.path.exists(fallback_config):
+                            config_path = os.path.dirname(fallback_config)
+                            break
+                else:
+                    # Last resort - use the default llm config path
+                    config_path = os.path.join(parent_dir, "..", "hunyuanimage-v2.1", "llm")
+                    if not os.path.exists(os.path.join(config_path, "config.json")):
+                        raise ValueError(f"Cannot find config.json for custom text encoder. Please ensure config.json is in the same directory as {text_encoder_path} or in models/text_encoders/hunyuanimage-v2.1/llm/")
+            else:
+                config_path = parent_dir
+            
+            # Load the model from config directory and then load the custom weights
+            if logger is not None:
+                logger.info(f"Loading text encoder config from: {config_path}")
+                logger.info(f"Loading text encoder weights from: {text_encoder_path}")
+            
+            from transformers import AutoConfig
+            import torch
+            
+            # Load config first
+            config = AutoConfig.from_pretrained(config_path, trust_remote_code=True)
+            
+            # Create model with config
+            text_encoder = AutoModelForVision2Seq.from_config(config)
+            
+            # Load the safetensor weights
+            if text_encoder_path.endswith('.safetensors'):
+                from safetensors.torch import load_file
+                state_dict = load_file(text_encoder_path)
+            else:
+                state_dict = torch.load(text_encoder_path, map_location='cpu')
+            
+            # Load state dict into model
+            text_encoder.load_state_dict(state_dict, strict=False)
+            
+            if logger is not None:
+                logger.info(f"Successfully loaded custom text encoder weights from: {text_encoder_path}")
+        else:
+            # It's a directory or HF repo - use the standard loading method
+            text_encoder = AutoModelForVision2Seq.from_pretrained(
+                text_encoder_path,
+                torch_dtype="auto",
+                trust_remote_code=True
+            )
     else:
         raise ValueError(f"Unsupported text encoder type: {text_encoder_type}")
 
@@ -106,6 +161,30 @@ def load_tokenizer(
     """
     if logger is not None:
         logger.info(f"Loading tokenizer ({tokenizer_type}) from: {tokenizer_path}")
+
+    # Handle safetensors file path - extract directory for tokenizer
+    import os
+    if tokenizer_path and tokenizer_path.endswith('.safetensors'):
+        # Try to find tokenizer in parent directory or nearby
+        possible_paths = [
+            os.path.dirname(tokenizer_path),
+            os.path.join(os.path.dirname(tokenizer_path), "tokenizer"),
+            os.path.dirname(os.path.dirname(tokenizer_path)),
+        ]
+        # Look for a path with tokenizer_config.json
+        for path in possible_paths:
+            if os.path.exists(os.path.join(path, "tokenizer_config.json")):
+                tokenizer_path = path
+                if logger:
+                    logger.info(f"Found tokenizer at: {tokenizer_path}")
+                break
+        else:
+            # If no tokenizer found, try using the default location
+            default_path = os.path.join(os.path.dirname(os.path.dirname(tokenizer_path)), "hunyuanimage-v2.1", "llm")
+            if os.path.exists(os.path.join(default_path, "tokenizer_config.json")):
+                tokenizer_path = default_path
+                if logger:
+                    logger.info(f"Using default tokenizer from: {tokenizer_path}")
 
     if tokenizer_type == "llm":
         tokenizer = AutoTokenizer.from_pretrained(
@@ -235,9 +314,28 @@ class TextEncoder(nn.Module):
         self.device = self.model.device
 
         padding_side = "right" if self.infer_mode == "encoder" else "left"
+        
+        # Handle tokenizer path - if model_path is a .safetensors file, find tokenizer directory
+        tokenizer_path = self.tokenizer_path
+        if tokenizer_path and tokenizer_path.endswith('.safetensors'):
+            import os
+            # Try to find tokenizer in parent directory or nearby
+            possible_paths = [
+                os.path.dirname(tokenizer_path),
+                os.path.join(os.path.dirname(tokenizer_path), "tokenizer"),
+                os.path.dirname(os.path.dirname(tokenizer_path)),
+            ]
+            # Look for a path with tokenizer_config.json
+            for path in possible_paths:
+                if os.path.exists(os.path.join(path, "tokenizer_config.json")):
+                    tokenizer_path = path
+                    if self.logger:
+                        self.logger.info(f"Found tokenizer at: {tokenizer_path}")
+                    break
+        
         self.tokenizer, self.tokenizer_path = load_tokenizer(
             tokenizer_type=self.tokenizer_type,
-            tokenizer_path=self.tokenizer_path,
+            tokenizer_path=tokenizer_path,
             padding_side=padding_side,
             logger=self.logger
         )
